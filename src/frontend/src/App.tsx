@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
-import { LogOut, Plus, RefreshCw, ShieldCheck } from "lucide-react";
+import { Loader2, LogOut, Plus, RefreshCw, ShieldCheck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -31,18 +31,26 @@ export default function App() {
   const addAccount = useAddAccount();
   const deleteAccount = useDeleteAccount();
 
-  // Register on login
+  // Keep a stable ref to register.mutate so the effect doesn't depend on
+  // the mutation object (which changes reference every render).
+  const registerRef = useRef(register);
+  useEffect(() => {
+    registerRef.current = register;
+  });
+
+  // Register on login — uses registerRef to avoid stale closure / infinite loop
   useEffect(() => {
     if (isLoggedIn && !hasRegisteredRef.current) {
       hasRegisteredRef.current = true;
-      register.mutate(undefined, {
+      registerRef.current.mutate(undefined, {
         onError: (err) => {
+          // Always reset so the next render can retry
+          hasRegisteredRef.current = false;
           if (err.message.includes("another principal")) {
             setAuthError(
               "This canister is already owned by another identity. Access denied.",
             );
             clear();
-            hasRegisteredRef.current = false;
           }
         },
       });
@@ -50,7 +58,7 @@ export default function App() {
     if (!isLoggedIn) {
       hasRegisteredRef.current = false;
     }
-  }, [isLoggedIn, register, clear]);
+  }, [isLoggedIn, clear]);
 
   const handleLogin = async () => {
     setAuthError(null);
@@ -62,6 +70,10 @@ export default function App() {
     issuer: string;
     secret: string;
   }) => {
+    if (register.isPending) {
+      toast.error("Setting up your account, please try again in a moment.");
+      return;
+    }
     try {
       await addAccount.mutateAsync(data);
       setShowAdd(false);
@@ -142,8 +154,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 px-4 py-4 max-w-lg mx-auto w-full pb-24">
+      {/* Main content — bottom padding clears the FAB (56px) + footer (28px) + gap */}
+      <main className="flex-1 px-4 py-4 max-w-lg mx-auto w-full pb-28">
         {isLoading ? (
           <div className="space-y-3" data-ocid="account.loading_state">
             {[1, 2, 3].map((i) => (
@@ -168,18 +180,23 @@ export default function App() {
         )}
       </main>
 
-      {/* FAB */}
-      <div className="fixed bottom-6 right-6 z-30">
+      {/* FAB — sits above the footer. Disabled while register is pending to prevent race condition */}
+      <div className="fixed bottom-10 right-6 z-30">
         <motion.button
           type="button"
-          whileTap={{ scale: 0.92 }}
-          whileHover={{ scale: 1.05 }}
-          onClick={() => setShowAdd(true)}
-          className="w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center"
+          whileTap={register.isPending ? undefined : { scale: 0.92 }}
+          whileHover={register.isPending ? undefined : { scale: 1.05 }}
+          onClick={() => !register.isPending && setShowAdd(true)}
+          disabled={register.isPending}
+          className="w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
           data-ocid="account.open_modal_button"
           aria-label="Add account"
         >
-          <Plus className="w-6 h-6" strokeWidth={2.5} />
+          {register.isPending ? (
+            <Loader2 className="w-6 h-6 animate-spin" />
+          ) : (
+            <Plus className="w-6 h-6" strokeWidth={2.5} />
+          )}
         </motion.button>
       </div>
 
@@ -194,8 +211,8 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 pb-1 text-center pointer-events-none">
+      {/* Footer — sits at the very bottom, above everything */}
+      <footer className="fixed bottom-0 left-0 right-0 h-9 flex items-center justify-center pointer-events-none z-20">
         <p className="text-xs text-muted-foreground/40">
           © {new Date().getFullYear()} ·{" "}
           <a

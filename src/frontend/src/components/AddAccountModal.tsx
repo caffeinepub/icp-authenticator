@@ -18,6 +18,11 @@ interface AddAccountModalProps {
   isAdding: boolean;
 }
 
+// BUG 4 FIX: Validate that the secret is a proper Base32 string
+function isValidBase32(s: string): boolean {
+  return /^[A-Z2-7]+=*$/i.test(s.replace(/\s/g, ""));
+}
+
 function ManualEntry({
   onAdd,
   isAdding,
@@ -37,7 +42,13 @@ function ManualEntry({
   const validate = () => {
     const e: Record<string, string> = {};
     if (!accountName.trim()) e.accountName = "Account name is required";
-    if (!secret.trim()) e.secret = "Secret key is required";
+    if (!secret.trim()) {
+      e.secret = "Secret key is required";
+    } else if (!isValidBase32(secret.trim())) {
+      // BUG 4 FIX: Reject secrets that contain invalid Base32 characters
+      e.secret =
+        "Secret must be a valid Base32 string (letters A-Z and digits 2-7 only)";
+    }
     return e;
   };
 

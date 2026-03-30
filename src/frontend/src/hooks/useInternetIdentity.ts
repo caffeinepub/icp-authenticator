@@ -233,6 +233,7 @@ export function InternetIdentityProvider({
 
   useEffect(() => {
     let cancelled = false;
+    let authenticated = false;
     void (async () => {
       try {
         setStatus("initializing");
@@ -247,16 +248,20 @@ export function InternetIdentityProvider({
         if (isAuthenticated) {
           const loadedIdentity = existingClient.getIdentity();
           setIdentity(loadedIdentity);
+          setStatus("success");
+          authenticated = true;
         }
       } catch (unknownError) {
-        setStatus("loginError");
-        setError(
-          unknownError instanceof Error
-            ? unknownError
-            : new Error("Initialization failed"),
-        );
+        if (!cancelled) {
+          setStatus("loginError");
+          setError(
+            unknownError instanceof Error
+              ? unknownError
+              : new Error("Initialization failed"),
+          );
+        }
       } finally {
-        if (!cancelled) setStatus("idle");
+        if (!cancelled && !authenticated) setStatus("idle");
       }
     })();
     return () => {

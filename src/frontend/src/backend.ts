@@ -89,10 +89,69 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface Account {
+    id: bigint;
+    accountName: string;
+    issuer: string;
+    secret: string;
+}
+export type Result_Nat = { ok: bigint } | { err: string };
+export type Result_Unit = { ok: null } | { err: string };
+export type Result_Accounts = { ok: Account[] } | { err: string };
 export interface backendInterface {
+    register: () => Promise<Result_Unit>;
+    getOwner: () => Promise<[Principal] | []>;
+    addAccount: (accountName: string, issuer: string, secret: string) => Promise<Result_Nat>;
+    getAccounts: () => Promise<Result_Accounts>;
+    deleteAccount: (id: bigint) => Promise<Result_Unit>;
 }
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+
+    async register(): Promise<Result_Unit> {
+        try {
+            return await this.actor.register();
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getOwner(): Promise<[Principal] | []> {
+        try {
+            return await this.actor.getOwner();
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async addAccount(accountName: string, issuer: string, secret: string): Promise<Result_Nat> {
+        try {
+            return await this.actor.addAccount(accountName, issuer, secret);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getAccounts(): Promise<Result_Accounts> {
+        try {
+            return await this.actor.getAccounts();
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async deleteAccount(id: bigint): Promise<Result_Unit> {
+        try {
+            return await this.actor.deleteAccount(id);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
 }
 export interface CreateActorOptions {
     agent?: Agent;

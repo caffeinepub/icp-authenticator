@@ -28,7 +28,8 @@ export default function AccountCard({
   index,
 }: AccountCardProps) {
   const [code, setCode] = useState("--- ---");
-  const [countdown, setCountdown] = useState(30);
+  // BUG 3 FIX: Initialize with actual current countdown value instead of hardcoded 30
+  const [countdown, setCountdown] = useState(() => getCountdown());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -52,7 +53,8 @@ export default function AccountCard({
   }, [refreshCode]);
 
   const handleCopy = async () => {
-    const raw = code.replace(" ", "");
+    // Remove all spaces before copying so the raw 6-digit code is on the clipboard
+    const raw = code.replace(/\s/g, "");
     await navigator.clipboard.writeText(raw);
     setCopied(true);
     toast.success("Copied!", { duration: 1500 });
